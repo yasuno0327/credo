@@ -14,9 +14,15 @@ defmodule Credo.CLI.Task.RunAutofix do
         |> group_by_file()
         |> Enum.each(fn {file_path, issues} ->
           file = read_fun.(file_path)
+          if file_path == "apps/neon/lib/neon_web/controllers/item_controller.ex" do
+            {corrected, _shift} = Enum.reduce(issues, {file, 0}, fn issue, acc ->
+              run_autofix(issue, acc, exec)
+            end)
 
-          corrected = Enum.reduce(issues, file, &run_autofix(&1, &2, exec))
-          write_fun.(file_path, corrected)
+            corrected |> IO.puts()
+            # write_fun.(file_path, corrected)
+          end
+          # write_fun.(file_path, corrected)
         end)
 
         exec
@@ -30,9 +36,9 @@ defmodule Credo.CLI.Task.RunAutofix do
     end)
   end
 
-  defp run_autofix(issue, file, exec) do
-    case issue.check.autofix(file, issue) do
-      ^file -> file
+  defp run_autofix(issue, {file, _line_shift} = acc, exec) do
+    case issue.check.autofix(acc, issue) do
+      {^file, _line_shift} -> acc
       corrected ->
         # Execution.remove_issue(exec, issue)
         corrected

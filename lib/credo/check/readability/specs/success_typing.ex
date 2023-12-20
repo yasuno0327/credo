@@ -24,6 +24,11 @@ defmodule Credo.Check.Readability.Specs.SuccessTyping do
         nil
 
       docs ->
+        # Enum.filter(docs, fn
+        #   {{^fun, ^arity}, _, _, _, _, _meta} -> true
+        #   _ -> false
+        # end) |> IO.inspect()
+
         Enum.find_value(docs, fn
           {{^fun, ^arity}, line, _, _, _, _meta} -> line
           _ -> nil

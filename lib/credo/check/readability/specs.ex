@@ -46,36 +46,41 @@ defmodule Credo.Check.Readability.Specs do
   # defmacro __using__ do, quote do...のように多重ブロック内に定義されている関数は外側の
   # __MODULE__.__using__などがissue.scopeに入ってしまい、バグる(target_modulesから見つからずにnilになる)
   # issueの発行段階(上記38行目)でのバグであり、直すにはcredo側にissueを立てる必要がある
-  def autofix(file, issue) do
-    {:ok, ast} = Code.string_to_quoted(file, literal_encoder: &{:ok, {:__block__, &2, [&1]}}, unescape: false, token_metadata: true)
+  def autofix({file, line_shift}, issue) do
     active_plt = __MODULE__.Plt.load_plt()
-    {module, function} = split_module_function(issue.scope)
-    spec = case target_modules()[module] do
+    %{scope: scope, line_no: line_no} = issue
+    {module, function} = split_module_function(scope)
+    file_each_lines = String.split(file, "\n")
+
+    file_with_shift = case target_modules()[module] do
       nil ->
-        IO.puts("Cannot analyze function of #{module}.#{function}")
-        nil
+        {nil, line_shift}
       beam_file ->
         new_plt = __MODULE__.Plt.analyze_file(active_plt, beam_file)
 
         __MODULE__.SuccessTyping.suggest(new_plt, module)
         |> Enum.find_value(fn
-          {{^module, ^function, arity}, line, success_typing} ->
-            IO.puts("Autocorrected: #{module}.#{function}/#{arity}")
+          # TODO: 後で調べたいcontractは見つかるが、line_noが間違えている場合がある
+          {{^module, ^function, arity}, ^line_no, success_typing} ->
+            IO.puts("Autocorrected: #{module}.#{function}/#{arity}, line: #{line_no}")
             translated = __MODULE__.Translator.translate_spec(module, function, success_typing)
-            Macro.prewalk(ast, fn current_ast ->
-              test(current_ast, line, translated)
-            end)
+            spec_line_count = String.split(translated, "\n") |> length()
+            insert_position = line_no + line_shift - 1
+            {List.insert_at(file_each_lines, insert_position, translated), line_shift + spec_line_count}
           _ -> nil
         end)
     end
 
-    case spec do
-      nil -> file
-      spec ->
-        spec
-        |> Code.quoted_to_algebra()
-        |> Inspect.Algebra.format(:infinity)
-        |> IO.iodata_to_binary()
+    case file_with_shift do
+      nil ->
+        IO.puts("Cannot analyze function of #{module}.#{function}, line: #{line_no}")
+        {file, line_shift}
+      {file_each_lines, updated_shift} ->
+        file =
+          file_each_lines
+          |> Enum.join("\n")
+
+        {file, updated_shift}
     end
   end
 

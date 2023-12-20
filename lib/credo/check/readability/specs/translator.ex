@@ -16,7 +16,11 @@ defmodule Credo.Check.Readability.Specs.Translator do
     spec
     |> Macro.postwalk(&tweak_specs/1)
     |> improve_defprotocol_spec(module, function)
-    |> replace_function_name(function)
+    |> Macro.to_string()
+    |> Code.format_string!(line_length: :infinity)
+    |> IO.iodata_to_binary()
+    |> String.replace_prefix("foo", to_string(function))
+    |> then(&"@spec #{&1}")
   end
 
   defp replace_function_name(spec, function) do
