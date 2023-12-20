@@ -86,6 +86,7 @@ defmodule Credo.ConfigBuilder do
     |> add_switch_min_priority(switches)
     |> add_switch_verbose(switches)
     |> add_switch_version(switches)
+    |> add_switch_autofix(switches)
   end
 
   # add_switch_all
@@ -279,6 +280,13 @@ defmodule Credo.ConfigBuilder do
   end
 
   defp add_switch_ignore(exec, _), do: exec
+
+  # add_switch_autofix
+  defp add_switch_autofix(exec, %{autofix: true}) do
+    %Execution{exec | autofix: true}
+  end
+
+  defp add_switch_autofix(exec, _), do: exec
 
   defp run_cli_switch_plugin_param_converters(exec) do
     Enum.reduce(

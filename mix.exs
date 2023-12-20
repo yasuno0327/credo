@@ -147,7 +147,10 @@ defmodule Credo.Mixfile do
       {:jason, "~> 1.0"},
       {:ex_doc, "~> 0.25", only: :dev, runtime: false},
       {:excoveralls, "~> 0.10", only: :test},
-      {:inch_ex, "~> 2.0", only: [:dev, :test], runtime: false}
+      {:inch_ex, "~> 2.0", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.3", runtime: false},
+      {:elixir_sense, github: "elixir-lsp/elixir_sense", ref: "02c101d03c0b5a81379b3905e7baa6e685c0fe99"},
+      {:erl2ex_vendored, github: "elixir-lsp/erl2ex", ref: "073ac6b9a44282e718b6050c7b27cedf9217a12a"}
     ]
   end
 

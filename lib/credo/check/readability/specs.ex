@@ -42,6 +42,98 @@ defmodule Credo.Check.Readability.Specs do
     Credo.Code.prewalk(source_file, &traverse(&1, &2, specs, issue_meta))
   end
 
+  # メモ
+  # defmacro __using__ do, quote do...のように多重ブロック内に定義されている関数は外側の
+  # __MODULE__.__using__などがissue.scopeに入ってしまい、バグる(target_modulesから見つからずにnilになる)
+  # issueの発行段階(上記38行目)でのバグであり、直すにはcredo側にissueを立てる必要がある
+  def autofix(file, issue) do
+    {:ok, ast} = Code.string_to_quoted(file, literal_encoder: &{:ok, {:__block__, &2, [&1]}}, unescape: false, token_metadata: true)
+    active_plt = __MODULE__.Plt.load_plt()
+    {module, function} = split_module_function(issue.scope)
+    spec = case target_modules()[module] do
+      nil ->
+        IO.puts("Cannot analyze function of #{module}.#{function}")
+        nil
+      beam_file ->
+        new_plt = __MODULE__.Plt.analyze_file(active_plt, beam_file)
+
+        __MODULE__.SuccessTyping.suggest(new_plt, module)
+        |> Enum.find_value(fn
+          {{^module, ^function, arity}, line, success_typing} ->
+            IO.puts("Autocorrected: #{module}.#{function}/#{arity}")
+            translated = __MODULE__.Translator.translate_spec(module, function, success_typing)
+            Macro.prewalk(ast, fn current_ast ->
+              test(current_ast, line, translated)
+            end)
+          _ -> nil
+        end)
+    end
+
+    case spec do
+      nil -> file
+      spec ->
+        spec
+        |> Code.quoted_to_algebra()
+        |> Inspect.Algebra.format(:infinity)
+        |> IO.iodata_to_binary()
+    end
+  end
+
+  def test({type, meta, rest} = ast, line, translated_success_typing) do
+    case find_target_func_index(rest, line) do
+      nil -> ast
+      index ->
+        spec_node = generate_spec(line, translated_success_typing)
+        rest = List.insert_at(rest, index, spec_node)
+        {type, meta, rest}
+    end
+  end
+
+  def test(other, _line, _tranlated) do
+    other
+  end
+
+  def find_target_func_index(rest, line) when is_list(rest) do
+    Enum.find_index(rest, fn
+      {:def, meta, _} -> Keyword.get(meta, :line) == line
+      {:defp, meta, _} -> Keyword.get(meta, :line) == line
+      _ -> false
+    end)
+  end
+
+  def find_target_func_index(_other, _line), do: nil
+
+  defp split_module_function(scope) do
+    splits = String.split(scope, ".")
+    function = List.last(splits) |> String.to_atom()
+    module =
+      splits
+      |> List.delete_at(-1)
+      |> Module.concat()
+    {module, function}
+  end
+
+  defp target_modules do
+    beam_wildcard = "**/*.beam"
+    build_path = Mix.Project.build_path()
+    [build_path, beam_wildcard]
+    |> Path.join()
+    |> Path.wildcard()
+    |> Enum.reduce(%{}, fn beam_path, acc ->
+      mod =
+        beam_path
+        |> Path.basename(".beam")
+        |> String.to_atom
+      Map.put(acc, mod, to_charlist(beam_path))
+    end)
+  end
+
+  defp generate_spec(line, translated_success_typing) do
+    {:@, [line: line - 1], [
+      {:spec, [line: line - 1], [translated_success_typing]}
+    ]}
+  end
+
   defp find_specs(
          {:spec, _, [{:when, _, [{:"::", _, [{name, _, args}, _]}, _]} | _]} = ast,
          specs

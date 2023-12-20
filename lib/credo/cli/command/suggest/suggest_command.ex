@@ -30,7 +30,8 @@ defmodule Credo.CLI.Command.Suggest.SuggestCommand do
       Switch.boolean("read_from_stdin"),
       Switch.boolean("strict"),
       Switch.boolean("verbose"),
-      Switch.boolean("watch")
+      Switch.boolean("watch"),
+      Switch.boolean("autofix")
     ]
 
   def init(exec) do
@@ -41,7 +42,8 @@ defmodule Credo.CLI.Command.Suggest.SuggestCommand do
       print_before_analysis: [__MODULE__.PrintBeforeInfo],
       run_analysis: [Task.RunChecks],
       filter_issues: [Task.SetRelevantIssues],
-      print_after_analysis: [__MODULE__.PrintResultsAndSummary]
+      print_after_analysis: [__MODULE__.PrintResultsAndSummary],
+      run_autofix: [Task.RunAutofix]
     )
   end
 
