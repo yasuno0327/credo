@@ -70,8 +70,10 @@ defmodule Credo.Check.Readability.Specs do
       spec ->
         IO.puts("Autocorrected #{module}.#{function}, line: #{line_no}")
         spec_line_count = spec |> String.split("\n") |> length()
-        current_spec_line_no = line_no + line_shift
-        updated_file = insert_to_file(spec, file_each_lines, current_spec_line_no - 1)
+        function_line_index = line_no + line_shift - 1
+        function_line = file_each_lines |> Enum.at(function_line_index)
+        spec = __MODULE__.Translator.indent_spec(spec, function_line)
+        updated_file = insert_to_file(spec, file_each_lines, function_line_index)
 
         {updated_file, line_shift + spec_line_count}
     end

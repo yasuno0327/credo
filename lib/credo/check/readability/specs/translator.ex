@@ -23,6 +23,31 @@ defmodule Credo.Check.Readability.Specs.Translator do
     |> then(&"@spec #{&1}")
   end
 
+  @doc """
+  To insert an indent to match the indentation of the target function line.
+  """
+  def indent_spec(spec_str, target_func_line) do
+    space_num = count_indent(target_func_line)
+    spaces = String.duplicate(" ", space_num)
+
+    spec_str
+    |> String.split("\n")
+    |> Enum.map(&"#{spaces}#{&1}")
+    |> Enum.join("\n")
+  end
+
+  defp count_indent(target_func_line) do
+    target_func_line
+    |> String.graphemes()
+    |> Enum.reduce_while(0, fn character, count ->
+      if character == " " do
+        {:cont, count + 1}
+      else
+        {:halt, count}
+      end
+    end)
+  end
+
   defp tweak_specs({:list, _meta, args}) do
     case args do
       [{:{}, _, [{:atom, _, []}, {wild, _, _}]}] when wild in [:_, :any] -> quote do: keyword()
