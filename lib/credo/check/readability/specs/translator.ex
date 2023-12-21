@@ -2,6 +2,8 @@ defmodule Credo.Check.Readability.Specs.Translator do
   alias Erl2exVendored.Convert.{Context, ErlForms}
   alias Erl2exVendored.Pipeline.{Parse, ModuleData, ExSpec}
 
+  def translate_spec(nil, _module, _function), do: nil
+
   def translate_spec(success_typing, module, function) do
     {[%ExSpec{specs: [spec]} | _rest], _} =
       # erl_parseを使っている都合上、erlangでの予約語などが入っているとエラーになる

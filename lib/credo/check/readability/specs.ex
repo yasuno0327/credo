@@ -91,7 +91,11 @@ defmodule Credo.Check.Readability.Specs do
 
   defp module_beam_file(module) do
     target_modules()
-    |> Map.fetch!(module)
+    |> Map.fetch(module)
+    |> case do
+      {:ok, beam_file} -> beam_file
+      _ -> nil
+    end
   end
 
   defp target_modules do

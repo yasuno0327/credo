@@ -34,7 +34,8 @@ defmodule Credo.Check.Readability.Specs.SuccessTyping do
 
   defp find_target(success_typing_with_line, module, function, line_no) do
     Enum.find_value(success_typing_with_line, fn
-      # TODO: 実際の関数の位置とElixirSense.Core.Normalized.Code.get_docsから取得してきた行番号が一致しない場合がある
+      # TODO: 実際の関数の位置とElixirSense.Core.Normalized.Code.get_docsから取得してきた行番号がnilの場合がある
+      # line_noではなくarityでパターンマッチすると良い...?
       {{^module, ^function, _arity}, ^line_no, success_typing} ->
         success_typing
       _ -> nil
