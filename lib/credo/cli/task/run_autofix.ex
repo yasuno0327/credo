@@ -36,7 +36,7 @@ defmodule Credo.CLI.Task.RunAutofix do
     end)
   end
 
-  defp run_autofix(issue, {file, _line_shift} = acc, exec) do
+  defp run_autofix(issue, {file, _line_shift} = acc, _exec) do
     case issue.check.autofix(acc, issue) do
       {^file, _line_shift} -> acc
       corrected ->

@@ -52,61 +52,30 @@ defmodule Credo.Check.Readability.Specs do
     {module, function} = split_module_function(scope)
     file_each_lines = String.split(file, "\n")
 
-    file_with_shift = case target_modules()[module] do
-      nil ->
-        {nil, line_shift}
-      beam_file ->
-        new_plt = __MODULE__.Plt.analyze_file(active_plt, beam_file)
+    suggest_spec_str =
+      case module_beam_file(module) do
+        nil ->
+          nil
+        beam_file ->
+          active_plt
+          |> __MODULE__.Plt.analyze_file(beam_file)
+          |> __MODULE__.SuccessTyping.suggest(module, function, line_no)
+          |> __MODULE__.Translator.translate_spec(module, function)
+      end
 
-        __MODULE__.SuccessTyping.suggest(new_plt, module)
-        |> Enum.find_value(fn
-          # TODO: 後で調べたいcontractは見つかるが、line_noが間違えている場合がある
-          {{^module, ^function, arity}, ^line_no, success_typing} ->
-            IO.puts("Autocorrected: #{module}.#{function}/#{arity}, line: #{line_no}")
-            translated = __MODULE__.Translator.translate_spec(module, function, success_typing)
-            spec_line_count = String.split(translated, "\n") |> length()
-            insert_position = line_no + line_shift - 1
-            {List.insert_at(file_each_lines, insert_position, translated), line_shift + spec_line_count}
-          _ -> nil
-        end)
-    end
-
-    case file_with_shift do
+    case suggest_spec_str do
       nil ->
         IO.puts("Cannot analyze function of #{module}.#{function}, line: #{line_no}")
         {file, line_shift}
-      {file_each_lines, updated_shift} ->
-        file =
-          file_each_lines
-          |> Enum.join("\n")
+      spec ->
+        IO.puts("Autocorrected #{module}.#{function}, line: #{line_no}")
+        spec_line_count = spec |> String.split("\n") |> length()
+        current_spec_line_no = line_no + line_shift
+        updated_file = insert_to_file(spec, file_each_lines, current_spec_line_no - 1)
 
-        {file, updated_shift}
+        {updated_file, line_shift + spec_line_count}
     end
   end
-
-  def test({type, meta, rest} = ast, line, translated_success_typing) do
-    case find_target_func_index(rest, line) do
-      nil -> ast
-      index ->
-        spec_node = generate_spec(line, translated_success_typing)
-        rest = List.insert_at(rest, index, spec_node)
-        {type, meta, rest}
-    end
-  end
-
-  def test(other, _line, _tranlated) do
-    other
-  end
-
-  def find_target_func_index(rest, line) when is_list(rest) do
-    Enum.find_index(rest, fn
-      {:def, meta, _} -> Keyword.get(meta, :line) == line
-      {:defp, meta, _} -> Keyword.get(meta, :line) == line
-      _ -> false
-    end)
-  end
-
-  def find_target_func_index(_other, _line), do: nil
 
   defp split_module_function(scope) do
     splits = String.split(scope, ".")
@@ -116,6 +85,11 @@ defmodule Credo.Check.Readability.Specs do
       |> List.delete_at(-1)
       |> Module.concat()
     {module, function}
+  end
+
+  defp module_beam_file(module) do
+    target_modules()
+    |> Map.fetch!(module)
   end
 
   defp target_modules do
@@ -133,10 +107,10 @@ defmodule Credo.Check.Readability.Specs do
     end)
   end
 
-  defp generate_spec(line, translated_success_typing) do
-    {:@, [line: line - 1], [
-      {:spec, [line: line - 1], [translated_success_typing]}
-    ]}
+  defp insert_to_file(spec, file_each_lines, insert_position) do
+    file_each_lines
+    |> List.insert_at(insert_position, spec)
+    |> Enum.join("\n")
   end
 
   defp find_specs(

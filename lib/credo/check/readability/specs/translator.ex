@@ -2,7 +2,7 @@ defmodule Credo.Check.Readability.Specs.Translator do
   alias Erl2exVendored.Convert.{Context, ErlForms}
   alias Erl2exVendored.Pipeline.{Parse, ModuleData, ExSpec}
 
-  def translate_spec(module, function, success_typing) do
+  def translate_spec(success_typing, module, function) do
     {[%ExSpec{specs: [spec]} | _rest], _} =
       # erl_parseを使っている都合上、erlangでの予約語などが入っているとエラーになる
       # そのため、一旦fooで置き換えている
@@ -21,12 +21,6 @@ defmodule Credo.Check.Readability.Specs.Translator do
     |> IO.iodata_to_binary()
     |> String.replace_prefix("foo", to_string(function))
     |> then(&"@spec #{&1}")
-  end
-
-  defp replace_function_name(spec, function) do
-    {type, meta, [{func_name, func_meta, func_rest} = _func_node | rest]} = spec
-    func_node = {function, func_meta, func_rest}
-    {type, meta, [func_node | rest]}
   end
 
   defp tweak_specs({:list, _meta, args}) do
