@@ -1,7 +1,7 @@
 
 defmodule Credo.Check.Readability.Specs.SuccessTyping do
   def suggest(active_plt, module, function, line_no) do
-    for {{mod, fun, arity} = mfa, success_typing} <- success_typings(active_plt, module), :dialyzer_plt.lookup_contract(active_plt, mfa) do
+    for {{mod, fun, arity}, success_typing} <- success_typings(active_plt, module) do
       line = find_function_line(mod, fun, arity)
       {{mod, fun, arity}, line, success_typing}
     end
@@ -36,7 +36,7 @@ defmodule Credo.Check.Readability.Specs.SuccessTyping do
     Enum.find_value(success_typing_with_line, fn
       # TODO: 実際の関数の位置とElixirSense.Core.Normalized.Code.get_docsから取得してきた行番号がnilの場合がある
       # line_noではなくarityでパターンマッチすると良い...?
-      {{^module, ^function, _arity}, ^line_no, success_typing} ->
+      {{^module, ^function, _arity}, _line_no, success_typing} ->
         success_typing
       _ -> nil
     end)
